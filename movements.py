@@ -16,12 +16,32 @@ class Wrestler:
         self.experience = experience
         self.health = 100
 
+        # Additional attributes used in attack/defend logic
+        self.speed = 1.0
+        self.attack_range = 30
+        self.stamina = 100
+
+        # Markov states could be something like: "idle", "attack", "defend"
+        # For simplicity, let's keep them minimal:
+        self.current_state = "idle"
+
+        # Transition probabilities for MDP (example)
+        # Next state probabilities given current state
+        self.state_transition = {
+            "idle":    {"attack": 0.4, "defend": 0.3, "idle": 0.3},
+            "attack":  {"attack": 0.2, "defend": 0.4, "idle": 0.4},
+            "defend":  {"attack": 0.3, "defend": 0.2, "idle": 0.5},
+        }
+
+    # -----------------------------
+    # Movement
+    # -----------------------------
     def move(self, dx, dy):
-        self.x += dx * self.speed
-        self.y += dy * self.speed
+        self.x += dx
+        self.y += dy
 
     def move_toward(self, target_x, target_y):
-        # Calculate the direction to move toward the target
+        # Calculate direction
         dx = target_x - self.x
         dy = target_y - self.y
         distance = np.sqrt(dx ** 2 + dy ** 2)
@@ -29,20 +49,73 @@ class Wrestler:
             dx /= distance
             dy /= distance
         self.move(dx, dy)
-    
 
+    # -----------------------------
+    # Simple MDP-based move decision
+    # -----------------------------
+    def decide_next_action_MDP(self):
+        """Decide the wrestler's next action using a basic Markov chain."""
+        transitions = self.state_transition[self.current_state]
+
+        # Get possible actions and their probabilities
+        actions, probs = zip(*transitions.items())
+
+        # Choose the next state
+        next_state = random.choices(actions, probs)[0]
+        self.current_state = next_state
+        return next_state
+
+    # -----------------------------
+    # Attack action
+    # -----------------------------
     def attack(self, opponent):
-        distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
-        if distance <= self.attack_range:
-            damage = random.randint(5, 10)  # Reduced damage
-            opponent.health -= damage
-            self.stamina -= 10
-            print(f"{self.name} attacked {opponent.name}! {opponent.name}'s health is now {opponent.health}.")
+        # Decide if we even want to "attack" or "defend" using MDP
+        action = self.decide_next_action_MDP()
+
+        # If the chosen action is "attack", proceed with actual attack
+        if action == "attack":
+            distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
+            if distance <= self.attack_range:
+                damage = random.randint(5, 10)
+                opponent.health -= damage
+                self.stamina -= 10
+                print(f"{self.name} attacked {opponent.name}! {opponent.name}'s health is now {opponent.health}.")
+            else:
+                print(f"{self.name} is too far to attack {opponent.name}.")
+        elif action == "defend":
+            self.defend()
         else:
-            print(f"{self.name} is too far to attack {opponent.name}.")
+            # idle or do nothing
+            print(f"{self.name} chooses to idle for this turn.")
+
+    # -----------------------------
+    # Defend action
+    # -----------------------------
+    def defend(self):
+        """
+        Simple defend example:
+        - Gain a bit of stamina or health
+        - Possibly reduce incoming damage
+        """
+        regain = random.randint(5, 10)
+        self.stamina = min(self.stamina + regain, 100)
+        print(f"{self.name} is defending, regaining {regain} stamina. Current stamina: {self.stamina}")
 
     def is_eliminated(self):
         return self.health <= 0
+
+    # def attack(self, opponent):
+    #     distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
+    #     if distance <= self.attack_range:
+    #         damage = random.randint(5, 10)  # Reduced damage
+    #         opponent.health -= damage
+    #         self.stamina -= 10
+    #         print(f"{self.name} attacked {opponent.name}! {opponent.name}'s health is now {opponent.health}.")
+    #     else:
+    #         print(f"{self.name} is too far to attack {opponent.name}.")
+
+    # def is_eliminated(self):
+    #     return self.health <= 0
 
 class WrestlingEnv(gym.Env):
     def __init__(self):
@@ -90,125 +163,142 @@ class WrestlingEnv(gym.Env):
             ("Bray Wyatt", 7, 191, 129, 65)
         ]
 
-        # Select any two players
-        self.initiator = random.choice(wrestlers_data)
-        self.responder = random.choice([wrestler for wrestler in wrestlers_data if wrestler != self.initiator])
+        # Choose initial players
+        init_data_1 = random.choice(wrestlers_data)
+        init_data_2 = random.choice([w for w in wrestlers_data if w != init_data_1])
+
+        self.initiator = Wrestler(*init_data_1)
+        self.responder = Wrestler(*init_data_2)
 
         # Add both wrestlers to the list
         self.wrestlers = [self.initiator, self.responder]
 
-        # self.wrestlers = [
-        #     Wrestler("John Cena", 100, 100),
-        #     Wrestler("The Rock", 400, 400)
-        # ]
-        # self.next_wrestlers = [
-        #     Wrestler("Undertaker", 200, 200),
-        #     Wrestler("Triple H", 300, 300),
-        #     Wrestler("Randy Orton", 250, 250)
-        # ]  # List of wrestlers waiting to enter
-
-        # Matplotlib setup
         self.fig, self.ax = plt.subplots()
         self.ax.set_xlim(0, self.arena_size)
         self.ax.set_ylim(0, self.arena_size)
         self.ax.set_aspect('equal')
 
-    # def reset(self):
-    #     # self.wrestlers = [
-    #     #     Wrestler("John Cena", 100, 100),
-    #     #     Wrestler("The Rock", 400, 400)
-    #     # ]
-    #     # self.next_wrestlers = [
-    #     #     Wrestler("Undertaker", 200, 200),
-    #     #     Wrestler("Triple H", 300, 300),
-    #     #     Wrestler("Randy Orton", 250, 250)
-    #     # ]
-    #     return self._get_observation()
+        # Simulated Annealing parameters (example usage for deciding next initiator)
+        self.temperature = 1.0
+        self.cooling_rate = 0.95
 
-    # def step(self, action):
-    #     # Wrestler 1 takes the action (if available)
-    #     if len(self.wrestlers) >= 1:
-    #         if action == 0:  # Up
-    #             self.wrestlers[0].move(0, -1)
-    #         elif action == 1:  # Down
-    #             self.wrestlers[0].move(0, 1)
-    #         elif action == 2:  # Left
-    #             self.wrestlers[0].move(-1, 0)
-    #         elif action == 3:  # Right
-    #             self.wrestlers[0].move(1, 0)
-    #         elif action == 4:  # Attack
-    #             if len(self.wrestlers) >= 2:  # Ensure there's an opponent to attack
-    #                 self.wrestlers[0].attack(self.wrestlers[1])
+    def step(self, action):
+        """
+        Typical gym Env step function (not fully implemented):
+        - action: int representing Up/Down/Left/Right/Attack/Defense
+        - returns (obs, reward, done, info)
+        """
+        # For demonstration, we won't fully implement the step logic:
+        done = False
+        reward = 0
 
-    #     # Wrestler 2 moves toward wrestler 1 if they are far apart (if available)
-    #     if len(self.wrestlers) >= 2:
-    #         distance = np.sqrt((self.wrestlers[0].x - self.wrestlers[1].x) ** 2 + (self.wrestlers[0].y - self.wrestlers[1].y) ** 2)
-    #         if distance > self.wrestlers[1].attack_range:
-    #             self.wrestlers[1].move_toward(self.wrestlers[0].x, self.wrestlers[0].y)
-    #         else:
-    #             # If close, wrestler 2 can attack or move randomly
-    #             wrestler2_action = random.randint(0, 4)
-    #             if wrestler2_action == 0:  # Up
-    #                 self.wrestlers[1].move(0, -1)
-    #             elif wrestler2_action == 1:  # Down
-    #                 self.wrestlers[1].move(0, 1)
-    #             elif wrestler2_action == 2:  # Left
-    #                 self.wrestlers[1].move(-1, 0)
-    #             elif wrestler2_action == 3:  # Right
-    #                 self.wrestlers[1].move(1, 0)
-    #             elif wrestler2_action == 4:  # Attack
-    #                 self.wrestlers[1].attack(self.wrestlers[0])
+        # Perform a basic action
+        if action == 0:  # Move Up
+            self.initiator.move(0, 1)
+        elif action == 1:  # Move Down
+            self.initiator.move(0, -1)
+        elif action == 2:  # Move Left
+            self.initiator.move(-1, 0)
+        elif action == 3:  # Move Right
+            self.initiator.move(1, 0)
+        elif action == 4:  # Attack
+            self.initiator.attack(self.responder)
+            # Check elimination
+            if self.responder.is_eliminated():
+                print(f"{self.responder.name} is eliminated!")
+                done = True
+                reward = 1  # example reward
+        elif action == 5:  # Defense
+            self.initiator.defend()
 
-    #     # Check if any wrestler is eliminated
-    #     for i, wrestler in enumerate(self.wrestlers):
-    #         if wrestler.is_eliminated():
-    #             print(f"{wrestler.name} has been eliminated!")
-    #             self.wrestlers.pop(i)  # Remove the eliminated wrestler
-    #             if self.next_wrestlers:  # Add a new wrestler if available
-    #                 new_wrestler = self.next_wrestlers.pop(0)
-    #                 self.wrestlers.append(new_wrestler)
-    #                 print(f"{new_wrestler.name} enters the arena!")
-    #             break  # Exit the loop after removing one wrestler
+        # After the initiator's move, we might want to do something for the responder
+        # For simplicity, let's just have the responder also attempt an action:
+        # (In a real scenario, you'd have an AI or MDP for the responder's turn as well.)
+        self.responder.attack(self.initiator)
+        if self.initiator.is_eliminated():
+            print(f"{self.initiator.name} is eliminated!")
+            done = True
+            reward = -1
 
-    #     # Check if the match is over
-    #     done = len(self.wrestlers) <= 1  # Match ends if only one wrestler remains
-    #     reward = 1 if len(self.wrestlers) == 1 else 0
+        # Example observation: positions of initiator & responder
+        obs = np.array([self.initiator.x, self.initiator.y,
+                        self.responder.x, self.responder.y], dtype=np.float32)
 
-    #     return self._get_observation(), reward, done, {}
+        # Possibly apply Simulated Annealing to choose next initiator
+        self.simulated_annealing_initiator_choice()
 
-    # def _get_observation(self):
-    #     # Return the positions of the first two wrestlers
-    #     if len(self.wrestlers) >= 2:
-    #         return np.array([self.wrestlers[0].x, self.wrestlers[0].y, self.wrestlers[1].x, self.wrestlers[1].y])
-    #     elif len(self.wrestlers) == 1:
-    #         # If only one wrestler is left, return their position twice
-    #         return np.array([self.wrestlers[0].x, self.wrestlers[0].y, self.wrestlers[0].x, self.wrestlers[0].y])
-    #     else:
-    #         # If no wrestlers are left, return zeros (shouldn't happen in normal gameplay)
-    #         return np.array([0, 0, 0, 0])
-
+        return obs, reward, done, {}
+    
     def render(self):
         self.ax.clear()  # Clear the previous plot
         self.ax.set_xlim(0, self.arena_size)
         self.ax.set_ylim(0, self.arena_size)
         self.ax.set_aspect('equal')
+        # Plot wrestlers (blue circle = initiator, red circle = responder)
         for wrestler in self.wrestlers:
-            print("**************", wrestler[1])
-            self.ax.plot(wrestler[1], wrestler[2], 'bo' if wrestler[0] == "John Cena" else 'ro', markersize=10, label=wrestler[0])
+            if wrestler == self.initiator:
+                self.ax.plot(wrestler.x, wrestler.y, 'bo', markersize=10, label=f"Initiator: {wrestler.name}")
+            else:
+                self.ax.plot(wrestler.x, wrestler.y, 'ro', markersize=10, label=f"Responder: {wrestler.name}")
+
         self.ax.legend()
         display.clear_output(wait=True)  # Clear the output for the next plot
         display.display(self.fig)  # Display the updated plot
 
+    def reset(self):
+        """
+        Typically resets the environment to a start state.
+        """
+        # For demonstration, we won't fully implement.
+        return np.zeros(4, dtype=np.float32)
+    
+    # --------------------------------------------
+    # Simple Simulated Annealing for Next Initiator
+    # --------------------------------------------
+    def simulated_annealing_initiator_choice(self):
+        """
+        Example approach:
+        - Evaluate some "score" for each wrestler
+        - With certain probability (guided by temperature), pick a new initiator
+        - Decrease temperature each iteration to reduce randomness over time
+        """
+        # Let's define a simplistic "fitness" = current health + stamina + popularity
+        candidate_scores = {}
+        for w in self.wrestlers:
+            score = w.health + w.stamina + (w.popularity * 10)
+            candidate_scores[w] = score
+
+        # Sort wrestlers by their score
+        ranked = sorted(candidate_scores, key=candidate_scores.get, reverse=True)
+
+        best_candidate = ranked[0]
+        # With some probability (based on temperature), we might pick a random candidate instead
+        if random.random() < self.temperature:
+            chosen_initiator = random.choice(self.wrestlers)
+        else:
+            chosen_initiator = best_candidate
+
+        # Update the environment's initiator
+        self.initiator = chosen_initiator
+        # Responder is the other wrestler
+        self.responder = [w for w in self.wrestlers if w != self.initiator][0]
+
+        # Cool down the temperature
+        self.temperature *= self.cooling_rate
+
 def main():
     env = WrestlingEnv()
-    # obs = env.reset()
+    obs = env.reset()
     done = False
 
-    while not done:
+    # Run a small loop of random actions for demonstration
+    for _ in range(10):
+        if done:
+            break
         env.render()
-        action = random.randint(0, 4)  # Random action for testing
-        # obs, reward, done, info = env.step(action)
-        # print(f"Reward: {reward}, Done: {done}")
+        action = random.randint(0, 5)  # 0-5 (Up, Down, Left, Right, Attack, Defense)
+        obs, reward, done, info = env.step(action)
+        print(f"Action: {action}, Reward: {reward}, Done: {done}")
 
     plt.close()  # Close the plot when done
 
