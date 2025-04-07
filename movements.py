@@ -197,7 +197,7 @@ class WrestlingEnv(gym.Env):
         init_data_1 = random.choice(self.wrestlers_data)
         init_data_2 = random.choice([w for w in self.wrestlers_data if w != init_data_1])
 
-        self.initiator = Wrestler(*init_data_1)
+        self.initiator = Wrestler(*init_data_1) # TODO: VS remove because SA already applied
         self.responder = Wrestler(*init_data_2)
 
         # Add both wrestlers to the list
@@ -379,8 +379,11 @@ class WrestlingEnv(gym.Env):
         """
         done = False # base condition when 29 players are eliminated and only one remains
         total_reward = 0
+        elimination_count = 0
 
-        
+        if elimination_count >= 29:
+            done = True
+
         # if action == 0:  # Move Up
         #     self.initiator.move(0, 1)
         # elif action == 1:  # Move Down
@@ -407,6 +410,9 @@ class WrestlingEnv(gym.Env):
         if self.elimination_count >= 29:
             done = True
 
+
+        if self.elimination_count >= 29:
+            done = True
 
         # TODO: VS update obs
         obs = np.array([self.initiator.x, self.initiator.y,
