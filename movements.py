@@ -19,6 +19,7 @@ class Wrestler:
         self.wins = 0
         self.stamina = 100
         self.reward = 0
+        self.elimination_count = 0
 
         self.attack_range = 500 # setting to full arena for now
 
@@ -77,7 +78,10 @@ class Wrestler:
         You designate one wrestler as the active initiator each turn.
         That initiator chooses an action (attack a specific opponent, defend, etc.).
         Only the initiator and chosen responder get immediate non-zero rewards.
-        Then you move on to the next wrestler’s turn.'''
+        Then you move on to the next wrestler's turn.'''
+        if self.stamina < 10:  # not enough stamina to attack
+            print(f"{self.name} is too tired to attack!")
+            return
 
         distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
         if distance > self.attack_range:
@@ -106,7 +110,7 @@ class Wrestler:
         if net_stamina <0:
             net_stamina = 5
 
-        self.stamina -= net_stamina
+        self.stamina = max(0, self.stamina - net_stamina)
 
         # (a) Reward for attacker's Damage dealing
         self.reward += net_damage 
@@ -139,6 +143,8 @@ class WrestlingEnv(gym.Env):
     def __init__(self):
         super(WrestlingEnv, self).__init__()
         self.arena_size = 500
+        self.elimination_count = 0
+        self.eliminated_names = set()
         self.action_space = spaces.Discrete(8)  # 0: Up, 1: Down, 2: Left, 3: Right, 4: Kicks, 5: Punches, 6: Signature moves, 7: Defense 
         # remove 0-3 from action space in case we don't need spatial awareness
 
@@ -151,10 +157,10 @@ class WrestlingEnv(gym.Env):
         # x_initiator, y_initiator, x_responder, y_responder] # Remove x and y if the decisions does not depend on the spatial awareness
 
         # Initialize wrestlers
-        wrestlers_data = [
+        self.wrestlers_data = [
             # (Name, Popularity, Height(cm), Weight(kg), Experience)
             ("John Cena", 10, 185, 114, 85),
-            ("The Rock", 10, 196, 118, 90),
+            ("The Great Khali", 10, 196, 118, 90),
             ("The Undertaker", 9, 208, 136, 95),
             ("Triple H", 9, 193, 116, 88),
             ("Randy Orton", 8, 196, 113, 82),
@@ -188,8 +194,8 @@ class WrestlingEnv(gym.Env):
         ]
 
         # Choose initial players
-        init_data_1 = random.choice(wrestlers_data)
-        init_data_2 = random.choice([w for w in wrestlers_data if w != init_data_1])
+        init_data_1 = random.choice(self.wrestlers_data)
+        init_data_2 = random.choice([w for w in self.wrestlers_data if w != init_data_1])
 
         self.initiator = Wrestler(*init_data_1)
         self.responder = Wrestler(*init_data_2)
@@ -206,12 +212,46 @@ class WrestlingEnv(gym.Env):
         self.temperature = 1.0
         self.cooling_rate = 0.95
 
-    def pick_initiator_and_responder(self):
-        # TODO: Rajkesh
-        # Select attacker and opponent on some conditions (don't know what)
-        pass
+    # def pick_initiator_and_responder(self):
+    # # Wrestlers with higher health, stamina, experience, and popularity have higher chances to participate.wins also.
+    #     if len(self.wrestlers) < 2:
+    #         print("Not enough wrestlers to select initiator and responder.")
+    #         return
+    
+    # # Fitness Score(used same for both initiator and responder)
+    #     fitness_scores = []
+    #     for wrestler in self.wrestlers:
+    #         score = (
+    #             0.4 * (wrestler.health / 100) +
+    #             0.3 * (wrestler.stamina / 100) +
+    #             0.2 * (wrestler.experience) +
+    #             0.1 * (wrestler.popularity) +
+    #             0.05 * (wrestler.wins)
+    #         )
+    #         fitness_scores.append(score)
+        
+    #     # Probabilistically pick initiator based on fitness scores
+    #     self.initiator = random.choices(self.wrestlers, weights=fitness_scores, k=1)[0]
 
-    # TODO: Rajkesh
+    #     # Temporarily remove initiator to select responder
+    #     remaining_wrestlers = [w for w in self.wrestlers if w != self.initiator]
+    #     remaining_scores = [
+    #         (
+    #             0.4 * (w.health / 100) +
+    #             0.3 * (w.stamina / 100) +
+    #             0.2 * w.experience +
+    #             0.1 * w.popularity +
+    #             0.05 * w.wins
+    #         )
+    #         for w in remaining_wrestlers
+    #     ]
+
+    #     # Probabilistically pick responder based on fitness scores
+    #     self.responder = random.choices(remaining_wrestlers, weights=remaining_scores, k=1)[0]
+
+    #     print(f"Initiator: {self.initiator.name}, Responder: {self.responder.name}")
+    
+
     # --------------------------------------------
     # Simple Simulated Annealing for Next Initiator
     # --------------------------------------------
@@ -245,13 +285,91 @@ class WrestlingEnv(gym.Env):
 
     #     # Cool down the temperature
     #     self.temperature *= self.cooling_rate
-
+    def calculate_fitness(self, wrestler):
+            return (
+                0.4 * (wrestler.health / 100) +
+                0.3 * (wrestler.stamina / 100) +
+                0.2 * wrestler.experience +
+                0.1 * wrestler.popularity +
+                0.05 * wrestler.wins
+        )
     def add_wrestlers(self):
-        # TODO: Rajkesh
-        # Possibly apply Simulated Annealing to choose next initiator
-        # self.simulated_annealing_initiator_choice()
-        # Select another wrestler to bring into arena
-        pass
+        # Add a new wrestler into the arena based on fitness score,
+        # prioritizing the best-fit unused wrestler.
+        current_names = [w.name for w in self.wrestlers]
+        available = [w for w in self.wrestlers_data if w[0] not in current_names and w[0] not in self.eliminated_names]
+
+        if not available:
+            print("No more wrestlers to add.")
+            return
+
+        # Convert to Wrestler instances temporarily to calculate fitness
+        candidates = [Wrestler(*data) for data in available]
+        candidates_fitness = {w: self.calculate_fitness(w) for w in candidates}
+
+        # Sort by fitness
+        sorted_candidates = sorted(candidates_fitness.items(), key=lambda x: x[1], reverse=True)
+
+        # With SA randomness
+        if random.random() < self.temperature:
+            chosen = random.choice(candidates)
+        else:
+            chosen = sorted_candidates[0][0]
+
+        self.wrestlers.append(chosen)
+        print(f"[SA] New wrestler joined: {chosen.name}")
+
+    def simulated_annealing_initiator_choice(self):
+    # Use Simulated Annealing to select the initiator based on fitness score
+    # with some randomness that decreases over time.
+        if len(self.wrestlers) < 2:
+            print("Not enough wrestlers for selection.")
+            return
+
+        # Score all wrestlers
+        candidate_scores = {w: self.calculate_fitness(w) for w in self.wrestlers}
+        best_candidate = max(candidate_scores, key=candidate_scores.get)
+
+        # With probability based on temperature, pick random instead of best
+        if random.random() < self.temperature:
+            self.initiator = random.choice(self.wrestlers)
+        else:
+            self.initiator = best_candidate
+
+        # Pick responder randomly from the rest
+        others = [w for w in self.wrestlers if w != self.initiator]
+        self.responder = random.choice(others)
+
+        print(f"[SA] Initiator: {self.initiator.name}, Responder: {self.responder.name}, Temp: {self.temperature:.3f}")
+
+        # Cool down the temperature after each selection
+        self.temperature *= self.cooling_rate
+
+        # 🔁 Reset temperature when too low
+        if self.temperature < 0.01:
+            self.temperature = 1.0
+
+    def handle_elimination(self, eliminated_wrestler):  
+        print(f"{eliminated_wrestler.name} is eliminated and removed from the arena.")
+        self.eliminated_names.add(eliminated_wrestler.name)
+        self.wrestlers.remove(eliminated_wrestler)
+
+        available_wrestlers = [
+            w for w in self.wrestlers_data
+            if w[0] not in [wr.name for wr in self.wrestlers] and w[0] not in self.eliminated_names
+        ]
+
+        if available_wrestlers:
+            new_wrestler_data = random.choice(available_wrestlers)
+            new_wrestler = Wrestler(*new_wrestler_data)
+            self.wrestlers.append(new_wrestler)
+            print(f"New wrestler entered: {new_wrestler.name}")
+            
+            self.simulated_annealing_initiator_choice()
+        else:
+            print("No wrestlers left to enter the arena.")
+
+
 
     def step(self, action):
         """
@@ -261,11 +379,8 @@ class WrestlingEnv(gym.Env):
         """
         done = False # base condition when 29 players are eliminated and only one remains
         total_reward = 0
-        elimination_count = 0
 
-        if elimination_count >= 29:
-            done = True
-
+        
         # if action == 0:  # Move Up
         #     self.initiator.move(0, 1)
         # elif action == 1:  # Move Down
@@ -280,15 +395,18 @@ class WrestlingEnv(gym.Env):
             if self.initiator.stamina > 0:
                 self.initiator.attack(self.responder, action)
                 if self.responder.is_eliminated():
-                    print(f"{self.responder.name} is eliminated!")
-                    self.initiator.reward += 10
-                    elimination_count += 1
+                     self.initiator.reward += 10
+                     self.elimination_count += 1
+                     self.handle_elimination(self.responder)
                     # done = True
                     # Bring more wrestlers into the game irrespective of time TODO: Rajkesh
                     # function to add wrestlers to the list
-                    self.add_wrestlers()
         elif action == 7:  # Defense
             self.initiator.defend()
+
+        if self.elimination_count >= 29:
+            done = True
+
 
         # TODO: VS update obs
         obs = np.array([self.initiator.x, self.initiator.y,
@@ -323,21 +441,25 @@ def main():
     obs = env.reset()
     done = False
 
-    # Run a small loop of random actions for demonstration
-    for _ in range(10):
+    # Initial initiator and responder selection
+    env.simulated_annealing_initiator_choice()
+
+    while not done:
+        env.render()
+        action = random.randint(4, 7)  # 4-6: attacks, 7: defend
+        obs, reward, done, info = env.step(action)
+
+        if env.responder.is_eliminated():
+            env.initiator.reward += 10  # Bonus for elimination
+            env.add_wrestlers()
+
         if done:
+            env.initiator.reward += 100  # Bonus for last man standing
             break
 
-        while not done: 
-            env.render()
-            action = random.randint(4, 8)  # 0-8 (Up, Down, Left, Right, Punch, Kick, SM, Defense)
-            obs, reward, done, info = env.step(action)
-            env.pick_initiator_and_responder() # TODO: Rajkesh
-            if done:
-                env.initiator.reward += 100 # Last standing man will get 100 reward points
-        print(f"Action: {action}, Reward: {reward}, Done: {done}")
+    plt.close()
 
-    plt.close()  # Close the plot when done
+
 
 if __name__ == "__main__":
     main()
