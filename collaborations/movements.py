@@ -4,6 +4,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 from IPython import display
+import pygame
 from variables import *
 
 class Wrestler:
@@ -81,12 +82,14 @@ class Wrestler:
         Then you move on to the next wrestler's turn.'''
         if self.stamina < 10:  # not enough stamina to attack
             print(f"{self.name} is too tired to attack!")
+            self.stamina += 5 
+            stay_idle()
             return
 
-        distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
-        if distance > self.attack_range:
-            print(f"{self.name} is too far to attack {opponent.name}.")
-            return
+        # distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
+        # if distance > self.attack_range:
+        #     print(f"{self.name} is too far to attack {opponent.name}.")
+        #     return
         
         random_noise = random.randint(-2, 2)
         # 0) Calculate opponent's defense
@@ -110,7 +113,7 @@ class Wrestler:
         if net_stamina <0:
             net_stamina = 5
 
-        self.stamina = max(0, self.stamina - net_stamina)
+        self.stamina -= net_stamina
 
         # (a) Reward for attacker's Damage dealing
         self.reward += net_damage 
@@ -124,17 +127,17 @@ class Wrestler:
        
 
     # -----------------------------
-    # Defend action
+    # Idle action
     # -----------------------------
-    def defend(self):
+    def stay_idle(self):
         """
-        Simple defend example:
+        Simple idle example:
         - Gain a bit of stamina or health
         - Possibly reduce incoming damage
         """
         regain = random.randint(5, 10)
         self.stamina = min(self.stamina + regain, 100)
-        print(f"{self.name} is defending, regaining {regain} stamina. Current stamina: {self.stamina}")
+        print(f"{self.name} is not attacking, regaining {regain} stamina. Current stamina: {self.stamina}")
 
     def is_eliminated(self):
         return self.health <= 0
@@ -394,18 +397,22 @@ class WrestlingEnv(gym.Env):
         #     self.initiator.move(1, 0)
 
         # while elimination_count < 30:
-        if action in [4,5,6]:  # Punch
-            if self.initiator.stamina > 0:
-                self.initiator.attack(self.responder, action)
-                if self.responder.is_eliminated():
-                     self.initiator.reward += 10
-                     self.elimination_count += 1
-                     self.handle_elimination(self.responder)
-                    # done = True
-                    # Bring more wrestlers into the game irrespective of time TODO: Rajkesh
-                    # function to add wrestlers to the list
-        elif action == 7:  # Defense
-            self.initiator.defend()
+        # if action in [4,5,6]:  # Punch, kick, sm
+        self.initiator.attack(self.responder, action)
+        if self.responder.is_eliminated():
+                self.initiator.reward += 10
+                self.elimination_count += 1
+                self.handle_elimination(self.responder)
+                # done = True
+                # Bring more wrestlers into the game irrespective of time TODO: Rajkesh
+                # function to add wrestlers to the list
+        # elif action == 7:  # Defense
+        #     self.initiator.defend()
+
+        for wrestler in self.wrestlers:
+            if wrestler not in [self.initiator, self.responder]:
+                # stay_idle(self.wrestler)
+                pass
 
         if self.elimination_count >= 29:
             done = True
@@ -443,7 +450,8 @@ class WrestlingEnv(gym.Env):
         return np.zeros(12, dtype=np.float32)
     
 def main():
-    env = WrestlingEnv()
+    pygame.init()
+    env = WrestlingEnv(ring_size=3.0, entry_interval=5)
     obs = env.reset()
     done = False
 
@@ -452,7 +460,7 @@ def main():
 
     while not done:
         env.render()
-        action = random.randint(4, 7)  # 4-6: attacks, 7: defend
+        action = random.randint(4, 6)  # 4-6: attacks
         obs, reward, done, info = env.step(action)
 
         if env.responder.is_eliminated():
