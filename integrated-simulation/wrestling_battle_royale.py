@@ -8,21 +8,11 @@ from agent import WrestlingAgent
 from wrestling_viz import WrestlingViz
 
 class BattleRoyaleEnv:
-    """Environment for a wrestling battle royale with multiple wrestlers entering over time.
-    
-    Attributes:
-        WIN_REWARD (float): Reward for eliminating an opponent
-        HIT_REWARD (float): Reward for landing a hit
-        MIN_SEPARATION (float): Minimum distance between wrestlers when entering
-    """
-    
-    WIN_REWARD = 500.0
-    HIT_REWARD = 10.0
+    """Environment for a wrestling battle royale with multiple wrestlers entering over time."""
     MIN_SEPARATION = 2  # Minimum distance between wrestlers
 
     def __init__(self, ring_size=5.0, entry_interval=8):
-        """Initialize the battle royale environment.
-        
+        """Initialize the battle royale environment.        
         Args:
             ring_size (float): Size of the wrestling ring
             entry_interval (int): Timesteps between new wrestler entries
@@ -126,8 +116,6 @@ class BattleRoyaleEnv:
 
                     if responder.health <= 0:  # Elimination check
                         self._handle_elimination(responder)
-                        rewards[initiator.id] += self.WIN_REWARD
-                        self.cumulative_initiator_rewards[initiator.id] += self.WIN_REWARD
                         dones[responder.id] = True
                         infos[initiator.id]["win"] = True
                         infos[responder.id]["lose"] = True
