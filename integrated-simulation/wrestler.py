@@ -71,7 +71,7 @@ class Wrestler:
             # Move toward opponent
             new_pos = self_pos + direction * move_step
             self.set_xyz(np.array([new_pos[0], new_pos[1], 1.0]))
-        elif action == 4:  # No-op (recover stamina)
+        elif action == 2:  # No-op (recover stamina)
             self.stamina = min(self.max_stamina, self.stamina + 5)
 
     def get_qpos(self):
