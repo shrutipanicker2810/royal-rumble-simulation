@@ -87,10 +87,10 @@ class BattleRoyaleEnv:
         initiator, responder = self._select_combatants()
 
         if initiator and responder:
-            action = actions.get(initiator.id, 4)  # Default to no-op if no action specified
+            action = actions.get(initiator.id, 2)  # Default to no-op if no action specified
             if initiator.stamina <= 0:
-                action = 4
-            attack_types = {0: "Punch", 1: "Kick", 3: "Signature", 4: "No-op"}
+                action = 2
+            attack_types = {0: "Punch", 1: "Kick", 3: "Signature", 2: "No-op"}
             attack_type = attack_types.get(action, "Unknown")
 
             print(f"Initiator: {initiator.name} - Health: {initiator.health:.1f} - Attack Type: {attack_type}")
@@ -171,9 +171,9 @@ class BattleRoyaleEnv:
                 if not too_close:
                     self.positions.append(candidate_pos)
                     break
-            else:
-                # If no valid position found after max attempts, place at center
-                self.positions.append(np.array([0.0, 0.0]))
+                else:
+                    # If no valid position found after max attempts, place at center
+                    self.positions.append(np.array([0.0, 0.0]))
             
             # Add wrestler to active list and update opponent tracking
             self.active_wrestlers.append(new_wrestler)
@@ -258,7 +258,7 @@ class BattleRoyaleEnv:
             if self.entry_timer <= 2 and w not in self.eliminated_wrestlers:
                 direction = -pos / max(np.linalg.norm(pos), 0.01)
                 new_pos = pos + direction * 0.5
-            elif w.last_action != 4:  # If not doing no-op
+            elif w.last_action != 2:  # If not doing no-op
                 new_pos = pos
 
             # Calculate repulsion from other wrestlers to prevent crowding

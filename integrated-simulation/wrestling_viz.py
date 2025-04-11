@@ -264,7 +264,7 @@ class WrestlingViz:
                         action_type = "Kick"
                     if last_action == 3:
                         action_type = "Signature"
-                    if last_action == 4:
+                    if last_action == 2:
                         action_type = "No-op"
                     move_label = self.stats_font.render("MOVE = " if wrestler == self.initiator else "", True, text_color)
                     panel.blit(move_label, (x_offset + 5, y_pos + 72))
