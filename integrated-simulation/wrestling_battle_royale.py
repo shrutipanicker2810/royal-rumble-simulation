@@ -20,7 +20,7 @@ class BattleRoyaleEnv:
     HIT_REWARD = 10.0
     MIN_SEPARATION = 2  # Minimum distance between wrestlers
 
-    def __init__(self, ring_size=3.0, entry_interval=8):
+    def __init__(self, ring_size=5.0, entry_interval=8):
         """Initialize the battle royale environment.
         
         Args:
@@ -40,6 +40,8 @@ class BattleRoyaleEnv:
         self.cooling_rate = 0.95  # Cooling rate per selection
         self.current_initiator = None  # Track the current initiator for SA
         self.current_initiator_fitness = None  # Track the fitness of the current initiator
+        self.latest_rewards = {}
+        self.cumulative_initiator_rewards = {}
 
     def reset(self):
         """Reset the environment to initial state."""
@@ -52,6 +54,7 @@ class BattleRoyaleEnv:
         self.temperature = 1.0
         self.current_initiator = None
         self.current_initiator_fitness = None
+        self.cumulative_initiator_rewards = {w.id: 0.0 for w in self.wrestlers}
         return self._get_obs()
 
     def step(self, actions):
@@ -116,6 +119,7 @@ class BattleRoyaleEnv:
                     defense_val = responder.compute_defense_rating()
                     responder.health -= (damage - (0.2 * defense_val))
                     rewards[initiator.id] += (damage - (0.2 * defense_val))
+                    self.cumulative_initiator_rewards[initiator.id] += (damage - (0.2 * defense_val))
                     responder.last_hit_time = pygame.time.get_ticks()
                     print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
@@ -123,6 +127,7 @@ class BattleRoyaleEnv:
                     if responder.health <= 0:  # Elimination check
                         self._handle_elimination(responder)
                         rewards[initiator.id] += self.WIN_REWARD
+                        self.cumulative_initiator_rewards[initiator.id] += self.WIN_REWARD
                         dones[responder.id] = True
                         infos[initiator.id]["win"] = True
                         infos[responder.id]["lose"] = True
@@ -136,6 +141,7 @@ class BattleRoyaleEnv:
         else:
             print("No combat this timestep (less than 2 wrestlers).")
 
+        self.latest_rewards = rewards
         self._update_simulation()
 
         # Check if match is over (only 1 wrestler left and no more to enter)
@@ -294,20 +300,37 @@ def run_battle_royale():
     viz = WrestlingViz()
     
     # Create wrestlers with stats (name, popularity, height, weight, experience)
+    # wrestlers_data = [
+    # # (Name, Popularity, Height(cm), Weight(kg), Experience (out of 100))
+    # # Top-tier wrestlers
+    # ("Roman Reigns", 10, 191, 120, 88),
+    # ("Brock Lesnar", 9, 191, 130, 95),
+    # ("Seth Rollins", 9, 185, 98, 80),
+    # ("Becky Lynch", 9, 168, 61, 77),
+    # # Moderate-tier wrestlers
+    # ("Finn Bálor", 7, 180, 86, 65),
+    # ("Kevin Owens", 7, 183, 122, 70),
+    # ("AJ Styles", 7, 180, 99, 73),
+    # # Low-tier wrestlers
+    # ("Dominik Mysterio", 5, 185, 91, 49),
+    # ("Liv Morgan", 5, 160, 50, 37),
+    # ("Otis", 4, 178, 150, 18)
+    # ]
+
     wrestlers_data = [
     # (Name, Popularity, Height(cm), Weight(kg), Experience (out of 100))
     # Top-tier wrestlers
-    ("Roman Reigns", 10, 191, 120, 88),
-    ("Brock Lesnar", 9, 191, 130, 95),
-    ("Seth Rollins", 9, 185, 98, 80),
-    ("Becky Lynch", 9, 168, 61, 77),
+    ("Roman R", 10, 191, 120, 88),
+    ("Brock L", 9, 191, 130, 95),
+    ("Seth R", 9, 185, 98, 80),
+    ("Becky L", 9, 168, 61, 77),
     # Moderate-tier wrestlers
-    ("Finn Bálor", 7, 180, 86, 65),
-    ("Kevin Owens", 7, 183, 122, 70),
+    ("Finn B", 7, 180, 86, 65),
+    ("Kevin O", 7, 183, 122, 70),
     ("AJ Styles", 7, 180, 99, 73),
     # Low-tier wrestlers
-    ("Dominik Mysterio", 5, 185, 91, 49),
-    ("Liv Morgan", 5, 160, 50, 37),
+    ("Dominik M", 5, 185, 91, 49),
+    ("Liv M", 5, 160, 50, 37),
     ("Otis", 4, 178, 150, 18)
     ]
     
@@ -319,6 +342,8 @@ def run_battle_royale():
     for i, w in enumerate(env.wrestlers, 1):
         print(f"{i}. {w.name} - Initial Health: {w.health}")
     print("\n")
+
+    env.reset()
 
     # Set all_wrestlers in viz.stats
     viz.stats["all_wrestlers"] = env.wrestlers
@@ -347,7 +372,7 @@ def run_battle_royale():
         viz.stats["eliminated"] = env.eliminated_wrestlers
         
         print(f"Rendering {len(env.active_wrestlers)} wrestlers")
-        viz.render(env.active_wrestlers, initiator, responder)
+        viz.render(env.active_wrestlers, initiator, responder, env.cumulative_initiator_rewards)
         clock.tick(30)
         pygame.time.delay(timestep_delay)
         
