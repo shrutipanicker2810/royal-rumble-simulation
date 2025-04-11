@@ -326,6 +326,15 @@ def run_battle_royale():
                      for i, (name, pop, height, weight, exp) in enumerate(wrestlers_data)]
     random.shuffle(env.wrestlers)  # Randomize entry order
     
+    # Set normalization bounds
+    heights = [w.height for w in env.wrestlers]
+    weights = [w.weight for w in env.wrestlers]
+
+    Wrestler.height_min = min(heights)
+    Wrestler.height_max = max(heights)
+    Wrestler.weight_min = min(weights)
+    Wrestler.weight_max = max(weights)
+
     print("\nBattle Royale Entry Order:")
     for i, w in enumerate(env.wrestlers, 1):
         print(f"{i}. {w.name} - Initial Health: {w.health}")
@@ -343,7 +352,7 @@ def run_battle_royale():
     
     running = True
     clock = pygame.time.Clock()
-    timestep_delay = 500  # Delay between timesteps in ms
+    timestep_delay = 0  # Delay between timesteps in ms
     
     while running:
         for event in pygame.event.get():

@@ -3,7 +3,12 @@ import pygame
 
 class Wrestler:
     """Represents a wrestler with attributes and combat abilities."""
-    
+
+    height_min = 160  # will be updated dynamically
+    height_max = 200
+    weight_min = 50
+    weight_max = 150
+
     def __init__(self, env, name, id, popularity, height, weight, experience):
         """Initialize a wrestler with physical attributes and stats.
         
@@ -25,8 +30,8 @@ class Wrestler:
         self.experience = experience
         self.health = 100  # Starting health
         self.max_health = 100
-        self.stamina = 50  # Starting stamina
-        self.max_stamina = 50
+        self.stamina = 100  # Starting stamina
+        self.max_stamina = 100
         self.wins = 0
         self.genes = np.random.uniform(0, 1, 3)  # [Strength, Agility, Defensiveness]
         self.last_action = None
@@ -35,31 +40,38 @@ class Wrestler:
         self.match_pos = None  # Position in match array
         self._opponents = []  # List of current opponents
 
+    def normalized_height(self):
+        return 100 * (self.height - Wrestler.height_min) / max((Wrestler.height_max - Wrestler.height_min), 1)
+
+    def normalized_weight(self):
+        return 100 * (self.weight - Wrestler.weight_min) / max((Wrestler.weight_max - Wrestler.weight_min), 1)
+
+
     def compute_strength(self):
         alpha1, alpha2, alpha3, alpha4, alpha5 = 0.3, 0.1, 0.2, 0.2, 0.2
         return (
-            alpha1 * self.weight +
-            alpha2 * self.height +
-            alpha3 * (self.experience + self.wins) +
-            alpha4 * self.popularity +
+            alpha1 * self.normalized_weight()+
+            alpha2 * self.normalized_height() +
+            alpha3 * ((self.experience/100.0) + self.wins) +
+            alpha4 * (self.popularity/10.0) +
             alpha5 * (self.health / 100.0)
         )
 
     def compute_stamina(self):
         beta1, beta2, beta3, beta4, beta5 = 0.3, 0.2, 0.2, 0.2, 0.1
         return (
-            beta1 * (200 - self.weight) +
-            beta2 * self.experience +
-            beta3 * self.popularity +
+            beta1 * self.normalized_weight() +
+            beta2 * (self.experience/100.0) +
+            beta3 * (self.popularity/10.0) +
             beta4 * (self.health / 100.0) +
             beta5 * self.wins
         )
 
     def compute_defense_rating(self):
-        gamma1, gamma2, gamma3 = 0.3, 0.2, 0.1
+        gamma1, gamma2 = 0.3, 0.1
         return (
-            gamma1 * self.experience +
-            gamma3 * (self.health / 100.0)
+            gamma1 * (self.experience/100.0) +
+            gamma2 * (self.health / 100.0)
         )
 
     def apply_action(self, action):
