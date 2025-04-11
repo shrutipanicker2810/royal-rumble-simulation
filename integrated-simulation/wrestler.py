@@ -27,6 +27,7 @@ class Wrestler:
         self.max_health = 100
         self.stamina = 50  # Starting stamina
         self.max_stamina = 50
+        self.wins = 0
         self.genes = np.random.uniform(0, 1, 3)  # [Strength, Agility, Defensiveness]
         self.last_action = None
         self.last_action_time = 0
@@ -35,16 +36,31 @@ class Wrestler:
         self._opponents = []  # List of current opponents
 
     def compute_strength(self):
-        """Calculate strength score based on attributes and genes."""
-        return self.genes[0] * (self.weight * 0.6 + self.height * 0.3 + self.experience * 0.2 + self.popularity * 0.2) 
+        alpha1, alpha2, alpha3, alpha4, alpha5 = 0.3, 0.1, 0.2, 0.2, 0.2
+        return (
+            alpha1 * self.weight +
+            alpha2 * self.height +
+            alpha3 * (self.experience + self.wins) +
+            alpha4 * self.popularity +
+            alpha5 * (self.health / 100.0)
+        )
 
     def compute_stamina(self):
-        """Calculate stamina score based on attributes and genes."""
-        return self.genes[1] * (self.experience * 0.2 + (200 - self.weight) * 0.3 + self.popularity * 0.2)
+        beta1, beta2, beta3, beta4, beta5 = 0.3, 0.2, 0.2, 0.2, 0.1
+        return (
+            beta1 * (200 - self.weight) +
+            beta2 * self.experience +
+            beta3 * self.popularity +
+            beta4 * (self.health / 100.0) +
+            beta5 * self.wins
+        )
 
     def compute_defense_rating(self):
-        """Calculate defense score based on attributes and genes."""
-        return self.genes[2] * (self.experience * 0.7 + self.height * 0.2)
+        gamma1, gamma2, gamma3 = 0.3, 0.2, 0.1
+        return (
+            gamma1 * self.experience +
+            gamma3 * (self.health / 100.0)
+        )
 
     def apply_action(self, action):
         """Apply the chosen action and update wrestler state.

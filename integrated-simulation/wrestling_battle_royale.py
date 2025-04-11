@@ -113,8 +113,9 @@ class BattleRoyaleEnv:
                         1: initiator.compute_strength() * 0.4,  # Kick
                         3: initiator.compute_strength() * 0.6   # Signature move
                     }[action]
-                    responder.health -= damage
-                    rewards[initiator.id] += damage
+                    defense_val = responder.compute_defense_rating()
+                    responder.health -= (damage - (0.2 * defense_val))
+                    rewards[initiator.id] += (damage - (0.2 * defense_val))
                     responder.last_hit_time = pygame.time.get_ticks()
                     print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
