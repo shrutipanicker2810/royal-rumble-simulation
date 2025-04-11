@@ -253,7 +253,7 @@ class WrestlingViz:
                     pygame.draw.rect(panel, self.BLACK, stamina_bar_rect, 3)
                     pygame.draw.rect(panel, (100, 100, 100), stamina_bar_rect)
                     pygame.draw.rect(panel, self.CYAN, (x_offset + 25, y_pos + 55, int(health_bar_width * stamina_ratio), 10))
-                    stamina_text = self.stats_font.render(f"{stamina_value:.0f}", True, text_color)
+                    stamina_text = self.stats_font.render(f"{stamina_value:.1f}", True, text_color)
                     panel.blit(stamina_text, (x_offset + 25 + health_bar_width + 5, y_pos + 52))  
 
                     last_action = wrestler.last_action
