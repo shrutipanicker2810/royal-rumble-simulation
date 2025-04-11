@@ -7,7 +7,7 @@ class WrestlingViz:
     Handles rendering of wrestlers, ring, and stats panel with scrolling capability.
     """
     
-    def __init__(self, ring_size=4.0, screen_width=1000, screen_height=600):
+    def __init__(self, ring_size=5.0, screen_width=1000, screen_height=600):
         """Initialize visualization with screen dimensions and ring size."""
         pygame.init()
         self.screen = pygame.display.set_mode((screen_width, screen_height))
@@ -16,6 +16,7 @@ class WrestlingViz:
         self.font = pygame.font.SysFont("Arial", 16)
         self.title_font = pygame.font.SysFont("Arial", 24, bold=True)
         self.stats_font = pygame.font.SysFont("Arial", 15, bold=True)
+        self.rewards_font = pygame.font.SysFont("Arial", 20, bold=True)
         self.previous_health = {}
         self.responder_health_loss = 0
 
@@ -42,7 +43,7 @@ class WrestlingViz:
         )
         
         # Stats tracking
-        self.stats = {"current_wrestlers": [], "eliminated": [], "winner": None}
+        self.stats = {"current_wrestlers": [], "eliminated": [], "winner": None, "cumulative_initiator_rewards": {}}
         self.initiator = None  # Currently attacking wrestler
         self.responder = None  # Currently defending wrestler
         
@@ -225,12 +226,28 @@ class WrestlingViz:
                     panel.blit(name, (x_offset + 7, y_pos + 7))
                     name = self.title_font.render(wrestler.name, True, text_color)
                     panel.blit(name, (x_offset + 5, y_pos + 5))
+
+                    if wrestler == self.initiator:
+                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 255, 0))
+                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+
+                    elif is_active and wrestler != self.initiator:
+                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (255, 255, 255))
+                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+
+                    else:
+                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 0, 0))
+                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+
                     
-                    # "HP" label before health bar ---
+                    # "HP" label before health bar
                     hp_label = self.stats_font.render("HP", True, text_color)
                     panel.blit(hp_label, (x_offset + 5, y_pos + 32))
                     
-                    # Health bar and value (shifted right to accommodate "HP" label)
+                    # Health bar and value 
                     health_ratio = wrestler.health / wrestler.max_health if is_active or is_eliminated else 1.0
                     health_value = wrestler.health if is_active or is_eliminated else wrestler.max_health
                     health_bar_width = (self.column_width - 70)  
@@ -242,11 +259,11 @@ class WrestlingViz:
                     health_text = self.stats_font.render(f"{health_value:.1f}", True, text_color)
                     panel.blit(health_text, (x_offset + 25 + health_bar_width + 5, y_pos + 32))  
                     
-                    # "ST" label before stamina bar ---
+                    # "ST" label before stamina bar 
                     sta_label = self.stats_font.render("ST", True, text_color)
                     panel.blit(sta_label, (x_offset + 5, y_pos + 52))
                     
-                    # Stamina bar and value (shifted right to accommodate "STA" label)
+                    # Stamina bar and value 
                     stamina_ratio = wrestler.stamina / wrestler.max_stamina if is_active else 1.0
                     stamina_value = wrestler.stamina if is_active else wrestler.max_stamina
                     stamina_bar_rect = (x_offset + 25, y_pos + 55, health_bar_width, 10)  
@@ -275,8 +292,8 @@ class WrestlingViz:
                     if wrestler == self.responder and self.responder_health_loss > 0:
                         health_loss_text = self.stats_font.render(f"HP LOST: {self.responder_health_loss:.1f}", True, text_color)
                         panel.blit(health_loss_text, (x_offset + 5, y_pos + 72))
-                    
-                    if wrestler == self.initiator and self.responder:
+                        
+                    if wrestler == self.responder and self.initiator:
                         # Calculate the distance between initiator and responder
                         initiator_pos = self.initiator.get_qpos()
                         responder_pos = self.responder.get_qpos()
@@ -298,7 +315,7 @@ class WrestlingViz:
         return True
     
 
-    def render(self, wrestlers, initiator=None, responder=None):
+    def render(self, wrestlers, initiator=None, responder=None, cumulative_initiator_rewards=None):
         """Render the current state of the match.
         
         Args:
@@ -342,6 +359,9 @@ class WrestlingViz:
             screen_pos = self.pos_to_screen(wrestler.get_qpos(), i == 0)
             self.draw_humanoid(wrestler, screen_pos, i == 0)
         self.draw_stats_panel()
+
+        self.stats["cumulative_initiator_rewards"] = cumulative_initiator_rewards or {}
+        self.responder_health_loss = 0
         
         # Update display
         pygame.display.flip()
