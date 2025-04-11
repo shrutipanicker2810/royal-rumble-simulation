@@ -1,3 +1,15 @@
+"""
+This is the backend code that sets up the wrestling environment using gym.
+1. It selects the first initiator through Simulated Annealing
+2. Picks an action from punch, kick, SM, stay idle
+3. If the environment's responder is eliminated after an action (reward[initiator] += 100), it adds a new wrestler to the arena.
+4. Builds the logic of attack and defense functions
+4.1 If wrestler chooses stay idle, regain stamina
+4.2 If wrestler chooses attack and has low stamina, stay idle and regain stamina
+4.2 If wrestler chooses attack and has enough stamina, attack the opponent and calculate opponent's defense, attacker's stamina and attacker's strength
+5 Calculate the reward for the attacker and responder at each step (end of the action)
+"""
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -24,12 +36,14 @@ class Wrestler:
 
         self.attack_range = 500 # setting to full arena for now
 
+
     # -----------------------------
     # Movement
     # -----------------------------
     def move(self, dx, dy):
         self.x += dx
         self.y += dy
+
 
     def move_toward(self, target_x, target_y):
         dx = target_x - self.x
@@ -39,6 +53,7 @@ class Wrestler:
             dx /= distance
             dy /= distance
         self.move(dx, dy)
+
 
     # -----------------------------
     # Compute strength, stamina and defense
@@ -54,6 +69,7 @@ class Wrestler:
         )
         return strength_value
     
+
     def compute_stamina(self, wrestler):
         beta1, beta2, beta3, beta4, beta5 = 0.3, 0.2, 0.2, 0.2, 0.1
         stamina_value = (
@@ -71,6 +87,21 @@ class Wrestler:
         return (gamma1 * wrestler.experience +
             gamma3 * (wrestler.health / 100.0))
 
+
+    # -----------------------------
+    # Idle action
+    # -----------------------------
+    def stay_idle(self):
+        """
+        Simple idle example:
+        - Gain a bit of stamina or health
+        - Possibly reduce incoming damage
+        """
+        regain = random.randint(5, 10)
+        self.stamina = min(self.stamina + regain, 100)
+        print(f"{self.name} is not attacking, regaining {regain} stamina. Current stamina: {self.stamina}")
+
+
     # -----------------------------
     # Attack action
     # -----------------------------
@@ -83,7 +114,7 @@ class Wrestler:
         if self.stamina < 10:  # not enough stamina to attack
             print(f"{self.name} is too tired to attack!")
             self.stamina += 5 
-            stay_idle()
+            self.stay_idle()
             return
 
         # distance = np.sqrt((self.x - opponent.x) ** 2 + (self.y - opponent.y) ** 2)
@@ -126,19 +157,6 @@ class Wrestler:
         print(f" Reward for {self.name} is {self.reward} and reward for {opponent.name} is {opponent.reward}")
        
 
-    # -----------------------------
-    # Idle action
-    # -----------------------------
-    def stay_idle(self):
-        """
-        Simple idle example:
-        - Gain a bit of stamina or health
-        - Possibly reduce incoming damage
-        """
-        regain = random.randint(5, 10)
-        self.stamina = min(self.stamina + regain, 100)
-        print(f"{self.name} is not attacking, regaining {regain} stamina. Current stamina: {self.stamina}")
-
     def is_eliminated(self):
         return self.health <= 0
 
@@ -148,7 +166,7 @@ class WrestlingEnv(gym.Env):
         self.arena_size = 500
         self.elimination_count = 0
         self.eliminated_names = set()
-        self.action_space = spaces.Discrete(8)  # 0: Up, 1: Down, 2: Left, 3: Right, 4: Kicks, 5: Punches, 6: Signature moves, 7: Defense 
+        self.action_space = spaces.Discrete(8)  # 0: Up, 1: Down, 2: Left, 3: Right, 4: Kicks, 5: Punches, 6: Signature moves, 7: stay_idle 
         # remove 0-3 from action space in case we don't need spatial awareness
 
         self.observation_space = spaces.Box(
@@ -196,11 +214,10 @@ class WrestlingEnv(gym.Env):
             ("Bray Wyatt", 7, 191, 129, 65)
         ]
 
-        # Choose initial players
         init_data_1 = random.choice(self.wrestlers_data)
         init_data_2 = random.choice([w for w in self.wrestlers_data if w != init_data_1])
 
-        self.initiator = Wrestler(*init_data_1) # TODO: VS remove because SA already applied
+        self.initiator = Wrestler(*init_data_1)
         self.responder = Wrestler(*init_data_2)
 
         # Add both wrestlers to the list
@@ -211,83 +228,10 @@ class WrestlingEnv(gym.Env):
         self.ax.set_ylim(0, self.arena_size)
         self.ax.set_aspect('equal')
 
-        # Simulated Annealing parameters (example usage for deciding next initiator)
         self.temperature = 1.0
         self.cooling_rate = 0.95
 
-    # def pick_initiator_and_responder(self):
-    # # Wrestlers with higher health, stamina, experience, and popularity have higher chances to participate.wins also.
-    #     if len(self.wrestlers) < 2:
-    #         print("Not enough wrestlers to select initiator and responder.")
-    #         return
-    
-    # # Fitness Score(used same for both initiator and responder)
-    #     fitness_scores = []
-    #     for wrestler in self.wrestlers:
-    #         score = (
-    #             0.4 * (wrestler.health / 100) +
-    #             0.3 * (wrestler.stamina / 100) +
-    #             0.2 * (wrestler.experience) +
-    #             0.1 * (wrestler.popularity) +
-    #             0.05 * (wrestler.wins)
-    #         )
-    #         fitness_scores.append(score)
-        
-    #     # Probabilistically pick initiator based on fitness scores
-    #     self.initiator = random.choices(self.wrestlers, weights=fitness_scores, k=1)[0]
 
-    #     # Temporarily remove initiator to select responder
-    #     remaining_wrestlers = [w for w in self.wrestlers if w != self.initiator]
-    #     remaining_scores = [
-    #         (
-    #             0.4 * (w.health / 100) +
-    #             0.3 * (w.stamina / 100) +
-    #             0.2 * w.experience +
-    #             0.1 * w.popularity +
-    #             0.05 * w.wins
-    #         )
-    #         for w in remaining_wrestlers
-    #     ]
-
-    #     # Probabilistically pick responder based on fitness scores
-    #     self.responder = random.choices(remaining_wrestlers, weights=remaining_scores, k=1)[0]
-
-    #     print(f"Initiator: {self.initiator.name}, Responder: {self.responder.name}")
-    
-
-    # --------------------------------------------
-    # Simple Simulated Annealing for Next Initiator
-    # --------------------------------------------
-    # def simulated_annealing_initiator_choice(self):
-    #     """
-    #     Example approach:
-    #     - Evaluate some "score" for each wrestler
-    #     - With certain probability (guided by temperature), pick a new initiator
-    #     - Decrease temperature each iteration to reduce randomness over time
-    #     """
-    #     # Let's define a simplistic "fitness" = current health + stamina + popularity
-    #     candidate_scores = {}
-    #     for w in self.wrestlers:
-    #         score = w.health + w.stamina + (w.popularity * 10)
-    #         candidate_scores[w] = score
-
-    #     # Sort wrestlers by their score
-    #     ranked = sorted(candidate_scores, key=candidate_scores.get, reverse=True)
-
-    #     best_candidate = ranked[0]
-    #     # With some probability (based on temperature), we might pick a random candidate instead
-    #     if random.random() < self.temperature:
-    #         chosen_initiator = random.choice(self.wrestlers)
-    #     else:
-    #         chosen_initiator = best_candidate
-
-    #     # Update the environment's initiator
-    #     self.initiator = chosen_initiator
-    #     # Responder is the other wrestler
-    #     self.responder = [w for w in self.wrestlers if w != self.initiator][0]
-
-    #     # Cool down the temperature
-    #     self.temperature *= self.cooling_rate
     def calculate_fitness(self, wrestler):
             return (
                 0.4 * (wrestler.health / 100) +
@@ -296,6 +240,8 @@ class WrestlingEnv(gym.Env):
                 0.1 * wrestler.popularity +
                 0.05 * wrestler.wins
         )
+    
+
     def add_wrestlers(self):
         # Add a new wrestler into the arena based on fitness score,
         # prioritizing the best-fit unused wrestler.
@@ -321,6 +267,7 @@ class WrestlingEnv(gym.Env):
 
         self.wrestlers.append(chosen)
         print(f"[SA] New wrestler joined: {chosen.name}")
+
 
     def simulated_annealing_initiator_choice(self):
     # Use Simulated Annealing to select the initiator based on fitness score
@@ -352,6 +299,7 @@ class WrestlingEnv(gym.Env):
         if self.temperature < 0.01:
             self.temperature = 1.0
 
+
     def handle_elimination(self, eliminated_wrestler):  
         print(f"{eliminated_wrestler.name} is eliminated and removed from the arena.")
         self.eliminated_names.add(eliminated_wrestler.name)
@@ -373,15 +321,13 @@ class WrestlingEnv(gym.Env):
             print("No wrestlers left to enter the arena.")
 
 
-
     def step(self, action):
         """
         Gym Env step function
-        - action: int representing Up/Down/Left/Right/3 Attacks/Defense
+        - action: int representing Up/Down/Left/Right/3 Attacks/stay_idle
         - returns (obs, reward, done, info)
         """
         done = False # base condition when 29 players are eliminated and only one remains
-        total_reward = 0
         elimination_count = 0
 
         if elimination_count >= 29:
@@ -396,8 +342,6 @@ class WrestlingEnv(gym.Env):
         # elif action == 3:  # Move Right
         #     self.initiator.move(1, 0)
 
-        # while elimination_count < 30:
-        # if action in [4,5,6]:  # Punch, kick, sm
         self.initiator.attack(self.responder, action)
         if self.responder.is_eliminated():
                 self.initiator.reward += 10
@@ -406,56 +350,28 @@ class WrestlingEnv(gym.Env):
                 # done = True
                 # Bring more wrestlers into the game irrespective of time TODO: Rajkesh
                 # function to add wrestlers to the list
-        # elif action == 7:  # Defense
-        #     self.initiator.defend()
+        elif action == 7:  # idle
+            self.initiator.stay_idle()
 
-        for wrestler in self.wrestlers:
-            if wrestler not in [self.initiator, self.responder]:
-                # stay_idle(self.wrestler)
-                pass
+        # TODO: VS increase stamina for everyone in the arena
 
-        if self.elimination_count >= 29:
-            done = True
-
-
-        if self.elimination_count >= 29:
-            done = True
-
-        # TODO: VS update obs
-        obs = np.array([self.initiator.x, self.initiator.y,
-                        self.responder.x, self.responder.y], dtype=np.float32)
-        # TODO: VS calculate total reward
-        return obs, total_reward, done, {}
-    
-    def render(self):
-        self.ax.clear()  # Clear the previous plot
-        self.ax.set_xlim(0, self.arena_size)
-        self.ax.set_ylim(0, self.arena_size)
-        self.ax.set_aspect('equal')
-        # Plot wrestlers (blue circle = initiator, red circle = responder)
-        for wrestler in self.wrestlers:
-            if wrestler == self.initiator:
-                self.ax.plot(wrestler.x, wrestler.y, 'bo', markersize=10, label=f"Initiator: {wrestler.name}")
-            else:
-                self.ax.plot(wrestler.x, wrestler.y, 'ro', markersize=10, label=f"Responder: {wrestler.name}")
-
-        self.ax.legend()
-        display.clear_output(wait=True)  # Clear the output for the next plot
-        display.display(self.fig)  # Display the updated plot
+        obs = np.array([self.initiator.health, self.initiator.stamina, action, 1 , self.responder.health, self.responder.stamina, 7, 1 , 
+                        self.initiator.x, self.initiator.y, self.responder.x, self.responder.y], dtype=np.float32)
+        return obs, self.initiator.reward, done, {}
 
     def reset(self):
         """
         Typically resets the environment to a start state.
         """
         return np.zeros(12, dtype=np.float32)
-    
+
+
 def main():
     pygame.init()
     env = WrestlingEnv(ring_size=3.0, entry_interval=5)
     obs = env.reset()
     done = False
 
-    # Initial initiator and responder selection
     env.simulated_annealing_initiator_choice()
 
     while not done:
@@ -472,8 +388,6 @@ def main():
             break
 
     plt.close()
-
-
 
 if __name__ == "__main__":
     main()
