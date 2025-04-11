@@ -1,4 +1,5 @@
 import pygame
+import pandas as pd
 import numpy as np
 import random
 import math
@@ -32,6 +33,8 @@ class BattleRoyaleEnv:
         self.current_initiator_fitness = None  # Track the fitness of the current initiator
         self.latest_rewards = {}
         self.cumulative_initiator_rewards = {}
+        self.interaction_data = []
+        self.action_matrix = np.zeros((10, 10, 3), dtype=float)
 
     def reset(self):
         """Reset the environment to initial state."""
@@ -45,6 +48,7 @@ class BattleRoyaleEnv:
         self.current_initiator = None
         self.current_initiator_fitness = None
         self.cumulative_initiator_rewards = {w.id: 0.0 for w in self.wrestlers}
+        self.interaction_data = []
         return self._get_obs()
 
     def step(self, actions):
@@ -110,6 +114,7 @@ class BattleRoyaleEnv:
                     responder.health -= (damage - (0.2 * defense_val))
                     rewards[initiator.id] += (damage - (0.2 * defense_val))
                     self.cumulative_initiator_rewards[initiator.id] += (damage - (0.2 * defense_val))
+                    reward = rewards[initiator.id]
                     responder.last_hit_time = pygame.time.get_ticks()
                     print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
@@ -126,6 +131,14 @@ class BattleRoyaleEnv:
             else:
                 print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                 print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
+            
+            self.interaction_data.append({
+                        "Timestep": self.entry_timer,
+                        "Initiator": initiator.name,
+                        "Action": attack_type,
+                        "Reward": round(rewards[initiator.id],1),
+                        "Responder": responder.name
+                    })
         else:
             print("No combat this timestep (less than 2 wrestlers).")
 
@@ -182,7 +195,7 @@ class BattleRoyaleEnv:
         """Calculate the fitness score of a wrestler based on health, stamina, experience, and popularity."""
         return (0.4 * (wrestler.health / wrestler.max_health) +
                 0.3 * (wrestler.stamina / wrestler.max_stamina) +
-                0.2 * (wrestler.experience / 10) +
+                0.2 * (wrestler.experience / 100) +
                 0.1 * (wrestler.popularity / 100))
     
     def _select_combatants(self):
@@ -288,39 +301,39 @@ def run_battle_royale():
     viz = WrestlingViz()
     
     # Create wrestlers with stats (name, popularity, height, weight, experience)
-    # wrestlers_data = [
-    # # (Name, Popularity, Height(cm), Weight(kg), Experience (out of 100))
-    # # Top-tier wrestlers
-    # ("Roman Reigns", 10, 191, 120, 88),
-    # ("Brock Lesnar", 9, 191, 130, 95),
-    # ("Seth Rollins", 9, 185, 98, 80),
-    # ("Becky Lynch", 9, 168, 61, 77),
-    # # Moderate-tier wrestlers
-    # ("Finn Bálor", 7, 180, 86, 65),
-    # ("Kevin Owens", 7, 183, 122, 70),
-    # ("AJ Styles", 7, 180, 99, 73),
-    # # Low-tier wrestlers
-    # ("Dominik Mysterio", 5, 185, 91, 49),
-    # ("Liv Morgan", 5, 160, 50, 37),
-    # ("Otis", 4, 178, 150, 18)
-    # ]
-
     wrestlers_data = [
     # (Name, Popularity, Height(cm), Weight(kg), Experience (out of 100))
     # Top-tier wrestlers
-    ("Roman R", 10, 191, 120, 88),
-    ("Brock L", 9, 191, 130, 95),
-    ("Seth R", 9, 185, 98, 80),
-    ("Becky L", 9, 168, 61, 77),
+    ("Roman Reigns", 10, 191, 120, 88),
+    ("Brock Lesnar", 9, 191, 130, 95),
+    ("Seth Rollins", 9, 185, 98, 80),
+    ("Becky Lynch", 9, 168, 61, 77),
     # Moderate-tier wrestlers
-    ("Finn B", 7, 180, 86, 65),
-    ("Kevin O", 7, 183, 122, 70),
+    ("Finn Bálor", 7, 180, 86, 65),
+    ("Kevin Owens", 7, 183, 122, 70),
     ("AJ Styles", 7, 180, 99, 73),
     # Low-tier wrestlers
-    ("Dominik M", 5, 185, 91, 49),
-    ("Liv M", 5, 160, 50, 37),
+    ("Dominik Mysterio", 5, 185, 91, 49),
+    ("Liv Morgan", 5, 160, 50, 37),
     ("Otis", 4, 178, 150, 18)
     ]
+
+    # wrestlers_data = [
+    # # (Name, Popularity, Height(cm), Weight(kg), Experience (out of 100))
+    # # Top-tier wrestlers
+    # ("Roman R", 10, 191, 120, 88),
+    # ("Brock L", 9, 191, 130, 95),
+    # ("Seth R", 9, 185, 98, 80),
+    # ("Becky L", 9, 168, 61, 77),
+    # # Moderate-tier wrestlers
+    # ("Finn B", 7, 180, 86, 65),
+    # ("Kevin O", 7, 183, 122, 70),
+    # ("AJ Styles", 7, 180, 99, 73),
+    # # Low-tier wrestlers
+    # ("Dominik M", 5, 185, 91, 49),
+    # ("Liv M", 5, 160, 50, 37),
+    # ("Otis", 4, 178, 150, 18)
+    # ]
     
     env.wrestlers = [Wrestler(env, name, i, pop, height, weight, exp) 
                      for i, (name, pop, height, weight, exp) in enumerate(wrestlers_data)]
@@ -330,7 +343,7 @@ def run_battle_royale():
     for i, w in enumerate(env.wrestlers, 1):
         print(f"{i}. {w.name} - Initial Health: {w.health}")
     print("\n")
-
+    wrestler_name_to_idx = {w.name: w.id for w in env.wrestlers}
     env.reset()
 
     # Set all_wrestlers in viz.stats
@@ -373,8 +386,51 @@ def run_battle_royale():
         
         # Pause briefly when match ends
         if any(dones.values()) and len(env.active_wrestlers) <= 1:
-            pygame.time.delay(timestep_delay)
-    
+            pygame.time.delay(timestep_delay)    
+
+    # Display interaction_data
+    print("\nInteraction Data Table:")
+    if env.interaction_data:
+        for timestep in env.interaction_data:
+            print(timestep)
+    else:
+        print("No interactions recorded.")
+
+    # Map interaction_data to action_matrix
+    action_to_idx = {"Punch": 0, "Kick": 1, "Signature": 2}
+    for timestep in env.interaction_data:
+        initiator_name = timestep["Initiator"]
+        responder_name = timestep["Responder"]
+        action = timestep["Action"]
+        reward = timestep["Reward"]
+
+        # Skip if action is "No-op" or not in our mapping
+        if action not in action_to_idx:
+            continue
+
+        initiator_idx = wrestler_name_to_idx[initiator_name]
+        responder_idx = wrestler_name_to_idx[responder_name]
+        action_idx = action_to_idx[action]
+        env.action_matrix[initiator_idx, responder_idx, action_idx] += reward
+        print(f"Action Matrix[{initiator_idx}, {responder_idx}, {action_idx}] ({initiator_name} vs {responder_name}, {action}) with reward {reward:.1f}, new value: {env.action_matrix[initiator_idx, responder_idx, action_idx]:.1f}")
+
+    sorted_wrestlers = sorted(env.wrestlers, key=lambda w: w.id)
+    wrestlers = [w.name for w in sorted_wrestlers]
+
+    # Initialize a 10x10 matrix to store lists
+    combined_matrix = [[None for _ in range(10)] for _ in range(10)]
+
+    for i in range(10):  # Initiator
+        for j in range(10):  # Responder
+            punch_reward = env.action_matrix[i, j, 0]
+            kick_reward = env.action_matrix[i, j, 1]
+            signature_reward = env.action_matrix[i, j, 2]
+            combined_matrix[i][j] = [punch_reward, kick_reward, signature_reward]
+
+    print("\nAction Matrix (Rewards as [Punch, Kick, Signature]):")
+    df_combined = pd.DataFrame(combined_matrix, index=wrestlers, columns=wrestlers)
+    print(df_combined)
+
     viz.close()
     sys.exit()
 

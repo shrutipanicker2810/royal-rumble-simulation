@@ -227,20 +227,20 @@ class WrestlingViz:
                     name = self.title_font.render(wrestler.name, True, text_color)
                     panel.blit(name, (x_offset + 5, y_pos + 5))
 
-                    if wrestler == self.initiator:
-                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
-                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 255, 0))
-                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+                    # if wrestler == self.initiator:
+                    #     cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                    #     reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 255, 0))
+                    #     panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
 
-                    elif is_active and wrestler != self.initiator:
-                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
-                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (255, 255, 255))
-                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+                    # elif is_active and wrestler != self.initiator:
+                    #     cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                    #     reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (255, 255, 255))
+                    #     panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
 
-                    else:
-                        cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
-                        reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 0, 0))
-                        panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
+                    # else:
+                    #     cumulative_reward = self.stats["cumulative_initiator_rewards"].get(wrestler.id, 0.0)
+                    #     reward_text = self.rewards_font.render(f"+{cumulative_reward:,.1f}", True, (0, 0, 0))
+                    #     panel.blit(reward_text, (x_offset + 5 + (self.column_width - 80) , y_pos + 5))
 
                     
                     # "HP" label before health bar
