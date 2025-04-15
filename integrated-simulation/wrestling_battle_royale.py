@@ -105,16 +105,21 @@ class BattleRoyaleEnv:
             if action in [0, 1, 3]:  # If attack action
                 if self._check_hit(initiator, responder):
                     # Calculate damage based on attack type
+                    random_noise = random.randint(-5, 5)
                     damage = {
                         0: initiator.compute_strength() * 0.3,  # Punch
                         1: initiator.compute_strength() * 0.4,  # Kick
                         3: initiator.compute_strength() * 0.6   # Signature move
                     }[action]
+                    stamina = {
+                        0: initiator.compute_stamina() * 0.2,  # Punch
+                        1: initiator.compute_stamina() * 0.3,  # Kick
+                        3: initiator.compute_stamina() * 0.4   # Signature move
+                    }[action]
                     defense_val = responder.compute_defense_rating()
-                    responder.health -= (damage - (0.2 * defense_val))
-                    rewards[initiator.id] += (damage - (0.2 * defense_val))
-                    self.cumulative_initiator_rewards[initiator.id] += (damage - (0.2 * defense_val))
-                    reward = rewards[initiator.id]
+                    responder.health -= (damage + random_noise - (0.2 * defense_val))
+                    rewards[initiator.id] = rewards[initiator.id] + (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val)) 
+                    self.cumulative_initiator_rewards[initiator.id] += (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val))
                     responder.last_hit_time = pygame.time.get_ticks()
                     print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
@@ -374,7 +379,9 @@ def run_battle_royale():
         
         # Get observations and actions
         obs = env._get_obs()
+        # Here we need to get intiator's and responder's observaions out of all these active_wrestler's observations
         actions = {w.id: agents[w.id].choose_action(obs.get(w.id, np.zeros(7))) for w in env.active_wrestlers}
+        # Here we need to get intiator's action out of all these active_wrestler's actions
         obs, rewards, dones, infos, initiator, responder = env.step(actions)
         
         # Update visualization stats

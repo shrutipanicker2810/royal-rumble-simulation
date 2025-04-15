@@ -31,10 +31,10 @@ class WrestlingAgent:
             action_probs[1] = 0.1  # Small chance to kick
         else:  # Close to opponent - attack
             # Weight actions by wrestler's strengths
-            action_probs[0] = 0.25  # Punch favors strength
-            action_probs[1] = 0.25   # Kick favors agility
-            action_probs[3] = 0.25   # Signature move favors strength
-            action_probs[2] = 0.25   # Small chance to do nothing
+            action_probs[0] = 0.33  # Punch favors strength
+            action_probs[1] = 0.33   # Kick favors agility
+            action_probs[3] = 0.33   # Signature move favors strength
+            action_probs[2] = 0   # Small chance to do nothing
 
         # Normalize probabilities and choose action
         action_probs /= action_probs.sum()
