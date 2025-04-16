@@ -39,3 +39,9 @@ class WrestlingAgent:
         # Normalize probabilities and choose action
         action_probs /= action_probs.sum()
         return np.random.choice(4, p=action_probs)
+
+
+
+
+
+

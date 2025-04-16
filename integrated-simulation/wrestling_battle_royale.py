@@ -117,7 +117,11 @@ class BattleRoyaleEnv:
                         3: initiator.compute_stamina() * 0.4   # Signature move
                     }[action]
                     defense_val = responder.compute_defense_rating()
-                    responder.health -= (damage + random_noise - (0.2 * defense_val))
+                    raw_damage = damage + random_noise - (0.2 * defense_val)
+                    # Apply damage and clamp health so it doesn't go below 0:
+                    responder.health = max(0, responder.health - raw_damage)
+
+                    #responder.health -= (damage + random_noise - (0.2 * defense_val))
                     initiator.stamina -= (stamina + random_noise - (0.2 * defense_val))
                     rewards[initiator.id] = rewards[initiator.id] + (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val)) 
                     self.cumulative_initiator_rewards[initiator.id] += (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val))
