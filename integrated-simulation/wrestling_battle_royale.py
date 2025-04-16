@@ -118,6 +118,7 @@ class BattleRoyaleEnv:
                     }[action]
                     defense_val = responder.compute_defense_rating()
                     responder.health -= (damage + random_noise - (0.2 * defense_val))
+                    initiator.stamina -= (stamina + random_noise - (0.2 * defense_val))
                     rewards[initiator.id] = rewards[initiator.id] + (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val)) 
                     self.cumulative_initiator_rewards[initiator.id] += (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val))
                     responder.last_hit_time = pygame.time.get_ticks()
@@ -134,6 +135,7 @@ class BattleRoyaleEnv:
                     print(f"Attack missed! Distance too far.")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
             else:
+                initiator.stamina = min(initiator.max_stamina, initiator.stamina + 5)
                 print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                 print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
             

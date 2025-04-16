@@ -93,14 +93,9 @@ class Wrestler:
         direction = (opp_pos - self_pos) / max(np.linalg.norm(opp_pos - self_pos), 0.01)
 
         if action in [0, 1, 3]:  # Offensive actions
-            # Deduct stamina based on action type
-            stamina_cost = {0: 5, 1: 7, 3: 20}[action]
-            self.stamina = max(0, self.stamina - stamina_cost)
             # Move toward opponent
             new_pos = self_pos + direction * move_step
             self.set_xyz(np.array([new_pos[0], new_pos[1], 1.0]))
-        elif action == 2:  # No-op (recover stamina)
-            self.stamina = min(self.max_stamina, self.stamina + 5)
 
     def get_qpos(self):
         """Get current position in ring.
