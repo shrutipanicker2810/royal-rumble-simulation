@@ -299,7 +299,7 @@ from wrestling_battle_royale import BattleRoyaleEnv, Wrestler
 
 # === PPO Hyperparameters ===
 OBS_DIM = 4    # [init_health, init_stamina, resp_health, resp_stamina]
-ACT_DIM = 4    # Actions: [Punch, Kick, Signature]
+ACT_DIM = 3    # Actions: [Punch, Kick, Signature]
 LR = 3e-4
 GAMMA = 0.99
 EPSILON = 0.2

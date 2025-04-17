@@ -13,17 +13,15 @@ class BattleRoyaleEnv:
     
     Attributes:
         WIN_REWARD (float): Reward for eliminating an opponent
-        HIT_REWARD (float): Reward for landing a hit
         MIN_SEPARATION (float): Minimum distance between wrestlers when entering
     """
     
     WIN_REWARD = 500.0
-    HIT_REWARD = 10.0
     MIN_SEPARATION = 2  # Minimum distance between wrestlers
 
-    def __init__(self, ring_size=3.0, entry_interval=5):
+    def __init__(self, ring_size=5.0, entry_interval=10):
         """Initialize the battle royale environment.
-        
+
         Args:
             ring_size (float): Size of the wrestling ring
             entry_interval (int): Timesteps between new wrestler entries
@@ -83,16 +81,15 @@ class BattleRoyaleEnv:
         rewards = {w.id: 0 for w in self.active_wrestlers}
         dones = {w.id: False for w in self.active_wrestlers}
         infos = {w.id: {} for w in self.active_wrestlers}
-        details_for_model = {w.id: {} for w in self.active_wrestlers}
 
         # Select two wrestlers to interact
         initiator, responder = self._select_combatants()
 
         if initiator and responder:
-            action = actions.get(initiator.id, 4)  # Default to no-op if no action specified
+            action = actions.get(initiator.id, 2)  # Default to no-op if no action specified
             if initiator.stamina <= 0:
-                action = 4
-            attack_types = {0: "Punch", 1: "Kick", 3: "Signature", 4: "No-op"}
+                action = 2
+            attack_types = {0: "Punch", 1: "Kick", 3: "Signature", 2: "No-op"}
             attack_type = attack_types.get(action, "Unknown")
 
             print(f"Initiator: {initiator.name} - Health: {initiator.health:.1f} - Attack Type: {attack_type}")
@@ -106,19 +103,29 @@ class BattleRoyaleEnv:
             self.positions[initiator.match_pos] = new_pos
 
             initiator.apply_action(action)
-            # details_for_model
 
             if action in [0, 1, 3]:  # If attack action
                 if self._check_hit(initiator, responder):
                     # Calculate damage based on attack type
+                    random_noise = random.randint(-5, 5)
                     damage = {
                         0: initiator.compute_strength() * 0.3,  # Punch
                         1: initiator.compute_strength() * 0.4,  # Kick
                         3: initiator.compute_strength() * 0.6   # Signature move
                     }[action]
+                    stamina = {
+                        0: initiator.compute_stamina() * 0.2,  # Punch
+                        1: initiator.compute_stamina() * 0.3,  # Kick
+                        3: initiator.compute_stamina() * 0.4   # Signature move
+                    }[action]
                     defense_val = responder.compute_defense_rating()
-                    responder.health -= (damage - (0.2 * defense_val))
-                    rewards[initiator.id] += (damage - (0.2 * defense_val))
+                    raw_damage = damage + random_noise - (0.2 * defense_val)
+                    # Apply damage and clamp health so it doesn't go below 0:
+                    responder.health = max(0, responder.health - raw_damage)
+
+                    #responder.health -= (damage + random_noise - (0.2 * defense_val))
+                    initiator.stamina -= (stamina + random_noise - (0.2 * defense_val))
+                    rewards[initiator.id] = rewards[initiator.id] + (random_noise + damage - (0.5 * stamina ) - (0.2 * defense_val)) 
                     responder.last_hit_time = pygame.time.get_ticks()
                     print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
@@ -134,11 +141,14 @@ class BattleRoyaleEnv:
                     print(f"Attack missed! Distance too far.")
                     print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
             else:
+                initiator.stamina = min(initiator.max_stamina, initiator.stamina + 5)
                 print(f"Rewards Gained by {initiator.name}: {rewards[initiator.id]:.1f}")
                 print(f"Responder: {responder.name} - Health after defending: {responder.health:.1f}")
+            
         else:
             print("No combat this timestep (less than 2 wrestlers).")
 
+        self.latest_rewards = rewards
         self._update_simulation()
 
         # Check if match is over (only 1 wrestler left and no more to enter)
@@ -261,7 +271,7 @@ class BattleRoyaleEnv:
             if self.entry_timer <= 2 and w not in self.eliminated_wrestlers:
                 direction = -pos / max(np.linalg.norm(pos), 0.01)
                 new_pos = pos + direction * 0.5
-            elif w.last_action != 4:  # If not doing no-op
+            elif w.last_action != 2:  # If not doing no-op
                 new_pos = pos
 
             # Calculate repulsion from other wrestlers to prevent crowding
@@ -290,24 +300,24 @@ class BattleRoyaleEnv:
             obs[w.id] = np.concatenate([np.array([w.health, w.stamina, w.last_action or 0]), self_pos, opp_pos])
         return obs
     
-def filter_wrestlers_by_lineage(wrestlers):
-    """Filter wrestlers to ensure only one per lineage, prioritizing initial versions."""
-    lineage_dict = {}
-    for wrestler in wrestlers:
-        # Extract base name (lineage) by removing "-Evolved-#" suffix
-        base_name = wrestler.name.split("-Evolved-")[0]
-        if base_name not in lineage_dict:
-            lineage_dict[base_name] = wrestler
-        else:
-            # Prioritize initial version (no "-Evolved-" in name) or lowest ID
-            current = lineage_dict[base_name]
-            if "-Evolved-" not in wrestler.name and "-Evolved-" in current.name:
-                lineage_dict[base_name] = wrestler
-            elif "-Evolved-" in wrestler.name and "-Evolved-" not in current.name:
-                continue
-            elif wrestler.id < current.id:
-                lineage_dict[base_name] = wrestler
-    return list(lineage_dict.values())
+# def filter_wrestlers_by_lineage(wrestlers):
+#     """Filter wrestlers to ensure only one per lineage, prioritizing initial versions."""
+#     lineage_dict = {}
+#     for wrestler in wrestlers:
+#         # Extract base name (lineage) by removing "-Evolved-#" suffix
+#         base_name = wrestler.name.split("-Evolved-")[0]
+#         if base_name not in lineage_dict:
+#             lineage_dict[base_name] = wrestler
+#         else:
+#             # Prioritize initial version (no "-Evolved-" in name) or lowest ID
+#             current = lineage_dict[base_name]
+#             if "-Evolved-" not in wrestler.name and "-Evolved-" in current.name:
+#                 lineage_dict[base_name] = wrestler
+#             elif "-Evolved-" in wrestler.name and "-Evolved-" not in current.name:
+#                 continue
+#             elif wrestler.id < current.id:
+#                 lineage_dict[base_name] = wrestler
+#     return list(lineage_dict.values())
     
 def run_battle_royale(num_generations=1):
     """Run the battle royale simulation with visualization."""
@@ -337,10 +347,20 @@ def run_battle_royale(num_generations=1):
                      for i, (name, pop, height, weight, exp) in enumerate(wrestlers_data)]
     random.shuffle(env.wrestlers)  # Randomize entry order
     
+    # Set normalization bounds
+    heights = [w.height for w in env.wrestlers]
+    weights = [w.weight for w in env.wrestlers]
+
+    Wrestler.height_min = min(heights)
+    Wrestler.height_max = max(heights)
+    Wrestler.weight_min = min(weights)
+    Wrestler.weight_max = max(weights)
+
     print("\nBattle Royale Entry Order:")
     for i, w in enumerate(env.wrestlers, 1):
         print(f"{i}. {w.name} - Initial Health: {w.health}")
     print("\n")
+    env.reset()
 
     # Set all_wrestlers in viz.stats
     viz.stats["all_wrestlers"] = env.wrestlers
@@ -367,6 +387,7 @@ def run_battle_royale(num_generations=1):
             # Get observations and actions
             obs = env._get_obs()
             actions = {w.id: agents[w.id].choose_action(obs.get(w.id, np.zeros(7))) for w in env.active_wrestlers}
+            # Here we need to get intiator's action out of all these active_wrestler's actions
             obs, rewards, dones, infos, initiator, responder = env.step(actions)
             
             # Update visualization stats
