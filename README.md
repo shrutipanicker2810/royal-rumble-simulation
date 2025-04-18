@@ -1,15 +1,16 @@
 ########### collaborations folder is where all four of us have worked to create backend and experiment on simulations.
--> DNN_impl.py file is the DNN experiment file.
--> movements.py and variables.py is the backend code that sets up the wrestling environment using gym.
-    1. It selects the first initiator through Simulated Annealing
-    2. Picks an action from punch, kick, SM, stay idle
-    3. If the environment's responder is eliminated after an action (reward[initiator] += 100), it adds a new wrestler to the arena.
-    4. Builds the logic of attack and defense functions
-    4.1 If wrestler chooses stay idle, regain stamina
-    4.2 If wrestler chooses attack and has low stamina, stay idle and regain stamina
-    4.2 If wrestler chooses attack and has enough stamina, attack the opponent and calculate opponent's defense, attacker's stamina and attacker's strength
-    5 Calculate the reward for the attacker and responder at each step (end of the action)
--> WrestlingEnv.py file is the simulation experiment file
+->PG_impl.py is the Policy Gradient experiment file.
+→ It uses movements.py and variables.py as the backend to define the wrestling environment and game dynamics.
+    1. The initiator is selected using Simulated Annealing.
+    2. A stochastic policy network (built using Keras) chooses an action: punch, kick, signature 
+        move, or stay idle.
+    3. If the responder is eliminated after an action (reward[initiator] += 100), a new wrestler 
+        enters the ring.
+    4. The environment handles stamina regeneration for idle moves and penalizes low stamina 
+         attacks.
+    5. Rewards are calculated after each action using damage dealt and stamina consumed.
+    
+→ The WrestlingEnv is used to simulate full rounds, collect trajectories, compute discounted returns, and update the policy using the REINFORCE algorithm.
 
 ########### main folder includes the code where we later on finalized the simulation and integrated our backend code with.
 -> wrestling_battle_royale.py is the main file 
