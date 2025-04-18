@@ -92,7 +92,7 @@ class Wrestler:
         self_pos = self.get_qpos()
         direction = (opp_pos - self_pos) / max(np.linalg.norm(opp_pos - self_pos), 0.01)
 
-        if action in [0, 1, 3]:  # Offensive actions
+        if action in [0, 1, 2]:  # Offensive actions
             # Move toward opponent
             new_pos = self_pos + direction * move_step
             self.set_xyz(np.array([new_pos[0], new_pos[1], 1.0]))

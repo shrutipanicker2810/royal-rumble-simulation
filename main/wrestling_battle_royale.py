@@ -89,7 +89,7 @@ class BattleRoyaleEnv:
             action = actions.get(initiator.id, 2)  # Default to no-op if no action specified
             if initiator.stamina <= 0:
                 action = 2
-            attack_types = {0: "Punch", 1: "Kick", 3: "Signature", 2: "No-op"}
+            attack_types = {0: "Punch", 1: "Kick", 2: "Signature", 3: "No-op"}
             attack_type = attack_types.get(action, "Unknown")
 
             print(f"Initiator: {initiator.name} - Health: {initiator.health:.1f} - Attack Type: {attack_type}")
@@ -104,19 +104,19 @@ class BattleRoyaleEnv:
 
             initiator.apply_action(action)
 
-            if action in [0, 1, 3]:  # If attack action
+            if action in [0, 1, 2]:  # If attack action
                 if self._check_hit(initiator, responder):
                     # Calculate damage based on attack type
                     random_noise = random.randint(-5, 5)
                     damage = {
                         0: initiator.compute_strength() * 0.3,  # Punch
                         1: initiator.compute_strength() * 0.4,  # Kick
-                        3: initiator.compute_strength() * 0.6   # Signature move
+                        2: initiator.compute_strength() * 0.6   # Signature move
                     }[action]
                     stamina = {
                         0: initiator.compute_stamina() * 0.2,  # Punch
                         1: initiator.compute_stamina() * 0.3,  # Kick
-                        3: initiator.compute_stamina() * 0.4   # Signature move
+                        2: initiator.compute_stamina() * 0.4   # Signature move
                     }[action]
                     defense_val = responder.compute_defense_rating()
                     raw_damage = damage + random_noise - (0.2 * defense_val)
@@ -271,7 +271,7 @@ class BattleRoyaleEnv:
             if self.entry_timer <= 2 and w not in self.eliminated_wrestlers:
                 direction = -pos / max(np.linalg.norm(pos), 0.01)
                 new_pos = pos + direction * 0.5
-            elif w.last_action != 2:  # If not doing no-op
+            elif w.last_action != 3:  # If not doing no-op
                 new_pos = pos
 
             # Calculate repulsion from other wrestlers to prevent crowding

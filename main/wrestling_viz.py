@@ -87,7 +87,7 @@ class WrestlingViz:
         # Handle attack animations
         action = wrestler.last_action
         action_time = wrestler.last_action_time
-        if action in [0, 1, 3] and pygame.time.get_ticks() - action_time < 500:
+        if action in [0, 1, 2] and pygame.time.get_ticks() - action_time < 500:
             # Animate attacking limbs
             progress = min((pygame.time.get_ticks() - action_time) / 500, 1.0)
             self.draw_attack_limbs(wrestler, screen_pos, body_top, body_bottom, action, progress, color, player_scale)
@@ -126,7 +126,7 @@ class WrestlingViz:
             screen_pos: Position on screen
             body_top: Top of body line
             body_bottom: Bottom of body line
-            action: Type of attack (0=punch, 1=kick, 3=signature)
+            action: Type of attack (0=punch, 1=kick, 2=signature)
             progress: Animation progress (0-1)
             color: Color to draw with
             player_scale: Size scaling factor
@@ -149,7 +149,7 @@ class WrestlingViz:
             pygame.draw.line(self.screen, color, body_bottom, (screen_pos[0] - (leg_length if wrestler.id % 2 else -leg_length), screen_pos[1] + leg_pos), line_thickness)
             pygame.draw.line(self.screen, color, body_top, (screen_pos[0] - arm_length, screen_pos[1] + arm_length), line_thickness)
             pygame.draw.line(self.screen, color, body_top, (screen_pos[0] + arm_length, screen_pos[1] + arm_length), line_thickness)
-        elif action == 3:  # Signature move animation
+        elif action == 2:  # Signature move animation
             pygame.draw.line(self.screen, color, body_top, (screen_pos[0] - arm_length, screen_pos[1] - arm_length * progress), line_thickness)
             pygame.draw.line(self.screen, color, body_top, (screen_pos[0] + arm_length, screen_pos[1] - arm_length * progress), line_thickness)
             pygame.draw.line(self.screen, color, body_bottom, (screen_pos[0] - leg_length, screen_pos[1] + leg_pos), line_thickness)
@@ -279,9 +279,9 @@ class WrestlingViz:
                         action_type = "Punch"
                     if last_action == 1:
                         action_type = "Kick"
-                    if last_action == 3:
-                        action_type = "Signature"
                     if last_action == 2:
+                        action_type = "Signature"
+                    if last_action == 3:
                         action_type = "No-op"
                     move_label = self.stats_font.render("MOVE = " if wrestler == self.initiator else "", True, text_color)
                     panel.blit(move_label, (x_offset + 5, y_pos + 72))
