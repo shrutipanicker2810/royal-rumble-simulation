@@ -1,5 +1,5 @@
 ########### collaborations folder is where all four of us have worked to create backend and experiment on simulations.
-->PG_impl.py is the Policy Gradient experiment file.
+->PolicyGradient_impl.py is the Policy Gradient experiment file.
 → It uses movements.py and variables.py as the backend to define the wrestling environment and game dynamics.
     1. The initiator is selected using Simulated Annealing.
     2. A stochastic policy network (built using Keras) chooses an action: punch, kick, signature 
