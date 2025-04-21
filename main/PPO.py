@@ -1,14 +1,15 @@
 import pygame
 import numpy as np
+import pygame
 import random
-import math
-import sys
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from genetic_evolution import evolve_wrestlers
 from wrestling_battle_royale import BattleRoyaleEnv, Wrestler
 
 
@@ -125,44 +126,56 @@ def train_ppo(num_episodes=100, max_steps=200):
     Wrestler.height_min = min(heights); Wrestler.height_max = max(heights)
     Wrestler.weight_min = min(weights); Wrestler.weight_max = max(weights)
 
-
+    num_generations = 3
     for ep in range(num_episodes):
-        trans = []; total_r=0; step=0
-        env.reset(); env._add_new_wrestler(); env._add_new_wrestler()
-        while True:
-            step+=1
-            init, resp = env._select_combatants()
+        generation = 0
+        while generation < num_generations - 1:
+            trans     = [] 
+            total_r = 0 # In gen, calculating the reward for only last generation with evolved wrestlers
+            step    = 0
+            print(f"\n=== Generation {generation + 1} ===")
+            env.reset()
+            env._add_new_wrestler()
+            env._add_new_wrestler()
 
-            # 1) Pick initiator & responder via SA
-            if not init or not resp:
-                env.step({});
-                if step>=max_steps: break
-                continue
+            while True:
+                step+=1
+                init, resp = env._select_combatants()
 
-            # 2) Build our 6 dim state
+                # 1) Pick initiator & responder via SA
+                if not init or not resp:
+                    env.step({});
+                    # if step>=max_steps: break
+                    # continue
 
-            obs = np.array([init.id,init.health,init.stamina,resp.id,resp.health,resp.stamina],dtype=np.float32)
+                # 2) Build our 6 dim state
+                obs = np.array([init.id,init.health,init.stamina,resp.id,resp.health,resp.stamina],dtype=np.float32)
 
-            # 3) Get action/logp/value
-            action, logp, val = agent.select_action(obs)
+                # 3) Get action/logp/value
+                action, logp, val = agent.select_action(obs)
 
-            # 4) Step environment
-            _, rewards, dones, _,_,_ = env.step({init.id:action})
+                # 4) Step environment
+                _, rewards, dones, _,_,_ = env.step({init.id:action})
 
-            # 5) Record transition for PPO
-            r = rewards.get(init.id,0.0); d = dones.get(init.id,False)
+                # 5) Check termination
+                d = dones.get(init.id,False)
+                if d or step>=max_steps or len(env.active_wrestlers)<=1: break
+
+            # 6) Record transition for PPO for the last generation only
+            r = rewards.get(init.id,0.0); 
             trans.append({'wrestler_id':init.id,'obs':obs,'action':action,'log_prob':logp,'value':val,'reward':r,'done':d})
             total_r += r
 
-            # 6) Check termination
-            if d or step>=max_steps or len(env.active_wrestlers)<=1: break
+            # 7) Evolve wrestlers if not last generation
+            env.wrestlers = evolve_wrestlers(env, env.wrestlers, num_generations=1)
+            generation += 1
 
-        # 7) Update PPO
+        # 8) Update PPO
         traj = compute_returns(trans)
         loss = agent.update(traj)
         print(f"Ep {ep+1}/{num_episodes} R={total_r:.2f} L={loss:.4f}")
 
-    torch.save(agent.model.state_dict(),"ppo_wrestling_model.pth")
+    torch.save(agent.model.state_dict(),"ppo_wrestling_model10000.pth")
     print("Training done.")
 
 
@@ -199,4 +212,7 @@ def train_ppo(num_episodes=100, max_steps=200):
     plt.show()
 
 if __name__ == "__main__":
-    train_ppo(num_episodes=100, max_steps=200)
+    start_time = time.time()
+    train_ppo(num_episodes=10000, max_steps=200)
+    end_time = time.time()
+    print(f"Execution Time: {end_time - start_time:.2f} seconds")
