@@ -4,7 +4,7 @@
 
 <img width="699" alt="RR-FAI-project" src="https://github.com/user-attachments/assets/199d21c8-a812-41be-a290-cf5f76ca60e4" />
 
-### Collaborations Folder![Uploading RR-FAI-project.png…]()
+### Collaborations Folder
 
 This folder is where all four of us have worked to create the backend and experiment on simulations.
 
