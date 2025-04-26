@@ -6,7 +6,7 @@
 
 ### Collaborations Folder
 
-This folder is where all four of us have worked to create the backend and experiment on simulations.
+This folder contains the work done to create the backend and experiment on simulations.
 
 - **PolicyGradient_impl.py**: The Policy Gradient experiment file.
 
